@@ -100,3 +100,6 @@ __pycache__
 # EDHREC commander matrix tool intermediates
 forge-gui/tools/build
 forge-gui-ios/robovm.properties
+
+# Ignore root resources directory
+res/
