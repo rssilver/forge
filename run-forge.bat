@@ -38,11 +38,11 @@ if "%~1"=="build" (
     )
 )
 
-REM Step 2: Copy resources to project root if needed
-if not exist "res\skins" (
-    echo [INFO] Setting up resource files...
-    xcopy /E /I /Y /Q forge-gui\res res > nul
-)
+REM Step 2: Sync resources to project root.
+REM Always re-sync so a stale/partial root res/ (from an earlier run or a half-finished
+REM copy) can't shadow the real assets in forge-gui\res and break skin loading.
+echo [INFO] Syncing resource files...
+xcopy /E /I /Y /Q forge-gui\res res > nul
 
 REM Step 3: Find the JAR
 for %%J in (forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies.jar) do (

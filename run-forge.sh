@@ -32,11 +32,12 @@ if [ "$1" = "build" ]; then
     JAR=$(ls forge-gui-desktop/target/forge-gui-desktop-*-jar-with-dependencies.jar | head -1)
 fi
 
-# Step 2: Copy resources to project root if needed
-if [ ! -d "res/skins" ]; then
-    echo "[INFO] Setting up resource files..."
-    cp -r forge-gui/res res
-fi
+# Step 2: Sync resources to project root.
+# Always re-sync so a stale/partial root res/ (from an earlier run or a half-finished
+# copy) can't shadow the real assets in forge-gui/res and break skin loading.
+echo "[INFO] Syncing resource files..."
+mkdir -p res
+cp -r forge-gui/res/. res/
 
 # Step 3: Launch
 echo "[INFO] Starting Forge..."
