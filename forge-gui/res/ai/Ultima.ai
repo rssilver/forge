@@ -1,0 +1,24 @@
+# Ultima AI Profile
+# Advanced decision engine with alpha-beta pruning, combo detection, and optional LLM consultation.
+
+# Alpha-beta search depth (2-5 recommended; higher = smarter but slower)
+ULTIMA_ALPHA_BETA_DEPTH=3
+
+# Model opponent responses in the search tree (requires depth >= 2)
+ULTIMA_OPPONENT_MODELING=true
+
+# Detect potential combos and infinite loops before they fire
+ULTIMA_COMBO_DETECTION_ENABLED=true
+
+# LLM Integration (leave empty to disable LLM consultation)
+# Set this to your OpenAI-compatible endpoint URL (e.g., LM Studio: http://localhost:1234/v1)
+ULTIMA_LLM_ENDPOINT=
+
+# Model name to use at the endpoint (e.g., "qwen3:8b", "llama3.1")
+ULTIMA_LLM_MODEL=
+
+# LLM temperature (0.0-1.0; lower = more deterministic decisions)
+ULTIMA_LLM_TEMPERATURE=0.1
+
+# Max seconds to wait for LLM response per decision
+ULTIMA_LLM_TIMEOUT_SECONDS=15

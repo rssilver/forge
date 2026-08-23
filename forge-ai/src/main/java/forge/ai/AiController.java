@@ -114,6 +114,9 @@ public class AiController {
     public boolean usesFullSimulation() {
         return simMode == AIOption.USE_FULL_SIMULATION;
     }
+    public boolean usesUltima() {
+        return simMode == AIOption.USE_ULTIMA;
+    }
     public void setUseSimulation(AIOption mode) {
         simMode = mode;
     }
@@ -1378,6 +1381,14 @@ public class AiController {
             return singleSpellAbilityList(simPicker.chooseSpellAbilityToPlay(null));
         }
 
+        // Let Ultima AI make the decision when enabled
+        if (usesUltima()) {
+            SpellAbility ultimaChoice = chooseWithUltima();
+            if (ultimaChoice != null) {
+                return singleSpellAbilityList(ultimaChoice);
+            }
+        }
+
         CardCollection playBeforeLand = CardLists.filter(
                 player.getCardsIn(ZoneType.Hand), CardPredicates.hasSVar("PlayBeforeLandDrop")
         );
@@ -2415,6 +2426,17 @@ public class AiController {
         // TODO always lower counters with Vorinclex first, might turn it from 1 to 0 as final
 
         return list.get(0);
+    }
+
+    /** Delegate spell selection to the Ultima AI engine. */
+    private SpellAbility chooseWithUltima() {
+        forge.ai.ultima.UltimaController ultima = new forge.ai.ultima.UltimaController(player);
+        SpellAbility choice = ultima.chooseBestSpell();
+        if (choice != null) {
+            return choice;
+        }
+        // Fallback: let standard AI handle it
+        return getSpellAbilityToPlay();
     }
 
 }

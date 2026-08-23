@@ -147,7 +147,16 @@ public enum AiProps {
     SIDEBOARDING_CHANCE_ON_WIN("0"),
     SIDEBOARDING_IN_LIMITED_FORMATS("false"),
     SIDEBOARDING_SHARED_TYPE_ONLY("false"),
-    SIDEBOARDING_PLANESWALKER_EQ_CREATURE("false");
+    SIDEBOARDING_PLANESWALKER_EQ_CREATURE("false"),
+
+    // Ultima AI settings - alpha-beta pruning + combo detection + LLM integration
+    ULTIMA_ALPHA_BETA_DEPTH("3"),
+    ULTIMA_OPPONENT_MODELING("true"),
+    ULTIMA_COMBO_DETECTION_ENABLED("true"),
+    ULTIMA_LLM_ENDPOINT(""),
+    ULTIMA_LLM_MODEL(""),
+    ULTIMA_LLM_TEMPERATURE("0.1"),
+    ULTIMA_LLM_TIMEOUT_SECONDS("15");
     // Experimental features, must be promoted or removed after extensive testing and, ideally, defaulting
     // <-- There are no experimental options here -->
 

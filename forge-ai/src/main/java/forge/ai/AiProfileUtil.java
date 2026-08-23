@@ -118,6 +118,12 @@ public class AiProfileUtil {
         String prop = AiProfileUtil.getAIProp(p.getLobbyPlayer(), propName);
 
         if (prop == null || prop.isEmpty()) {
+            // Check system property as fallback (set by ForgePreferences at startup)
+            String sysKey = "forge.ai." + propName.name().toLowerCase();
+            String sysVal = System.getProperty(sysKey);
+            if (sysVal != null && !sysVal.isEmpty()) {
+                return sysVal;
+            }
             // TODO if p is human try to predict some values from previous plays or something
             return propName.getDefault();
         }
