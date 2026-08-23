@@ -151,6 +151,30 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
     private final FComboBoxPanel<String> cbpAiProfiles = new FComboBoxPanel<>(localizer.getMessage("cbpAiProfiles")+":");
     private final FComboBoxPanel<String> cbpAiSideboardingMode = new FComboBoxPanel<>(localizer.getMessage("cbpAiSideboardingMode")+":");
     private final FComboBoxPanel<String> cbpAiTimeout = new FComboBoxPanel<>(localizer.getMessage("cbAITimeout")+":");
+
+    // Ultima AI LLM settings
+    private final FTextField txtLLMEndpoint = new FTextField.Builder()
+            .ghostText("http://localhost:1234/v1").build();
+    private final FTextField txtLLMApiKey = new FTextField.Builder()
+            .ghostText("sk-...").build();
+    private final FTextField txtLLMModel = new FTextField.Builder()
+            .ghostText("qwen3:8b").build();
+    private final FTextField txtLLMTemperature = new FTextField.Builder()
+            .ghostText("0.1").maxLength(4).build();
+    private final FLabel btnTestLLMConnection = new FLabel.Builder()
+            .opaque(true).hoverable(true)
+            .text("Test Connection")
+            .build();
+
+    private JPanel getLabeledTextField(String label, FTextField field) {
+        JPanel p = new JPanel(new MigLayout("insets 0, gap 0!"));
+        p.setOpaque(false);
+        FLabel lbl = new FLabel.Builder().text(label + ": ").fontSize(12).fontStyle(Font.BOLD).build();
+        p.add(lbl, "aligny top, h 100%, gap 4px 0 0 0");
+        p.add(field, "aligny top, h 100%, w 80%!");
+        return p;
+    }
+
     private final FComboBoxPanel<String> cbpStackAdditions = new FComboBoxPanel<>(localizer.getMessage("cbpStackAdditions")+":");
     private final FComboBoxPanel<String> cbpLandPlayed = new FComboBoxPanel<>(localizer.getMessage("cbpLandPlayed")+":");
     private final FComboBoxPanel<String> cbpDisplayCurrentCardColors = new FComboBoxPanel<>(localizer.getMessage("cbpDisplayCurrentCardColors")+":");
@@ -269,6 +293,21 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
 
         pnlPrefs.add(cbpAiTimeout, titleConstraints);
         pnlPrefs.add(new NoteLabel(localizer.getMessage("nlAITimeout")), descriptionConstraints);
+
+        // Ultima AI LLM settings section
+        pnlPrefs.add(new SectionLabel("Ultima AI"), sectionConstraints);
+        pnlPrefs.add(getLabeledTextField("API Endpoint", txtLLMEndpoint), "w 80%!, h 26px!, gap 25px 0 0 0px, span 2 1");
+        pnlPrefs.add(new NoteLabel(
+                "OpenAI-compatible API endpoint (e.g. http://localhost:1234/v1)"), descriptionConstraints);
+        pnlPrefs.add(getLabeledTextField("API Key", txtLLMApiKey), "w 80%!, h 26px!, gap 25px 0 0 0px, span 2 1");
+        pnlPrefs.add(new NoteLabel("Optional API key for authentication"), descriptionConstraints);
+        pnlPrefs.add(getLabeledTextField("Model Name", txtLLMModel), "w 80%!, h 26px!, gap 25px 0 0 0px, span 2 1");
+        pnlPrefs.add(new NoteLabel(
+                "Model name (e.g. qwen3:8b, llama3.1)"), descriptionConstraints);
+        pnlPrefs.add(getLabeledTextField("Temperature", txtLLMTemperature), "w 80%!, h 26px!, gap 25px 0 0 0px, span 2 1");
+        pnlPrefs.add(new NoteLabel("Temperature 0.0-1.0; lower = more deterministic"), descriptionConstraints);
+        pnlPrefs.add(btnTestLLMConnection, "w 45%!, h 30px!, gap 25px 0 0 5px");
+        pnlPrefs.add(new NoteLabel(""), comboBoxConstraints);
 
         pnlPrefs.add(cbOrderHand, titleConstraints);
         pnlPrefs.add(new NoteLabel(localizer.getMessage("nlOrderHand")), descriptionConstraints);
@@ -1369,4 +1408,10 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
         pnlPrefs.revalidate();
         pnlPrefs.repaint();
     }
+
+    public FTextField getTxtLLMEndpoint()      { return txtLLMEndpoint; }
+    public FTextField getTxtLLMApiKey()        { return txtLLMApiKey; }
+    public FTextField getTxtLLMModel()         { return txtLLMModel; }
+    public FTextField getTxtLLMTemperature()   { return txtLLMTemperature; }
+    public FLabel     getBtnTestLLMConnection(){ return btnTestLLMConnection; }
 }

@@ -200,6 +200,12 @@ public class ForgePreferences extends AbstractPreferences<ForgePreferences.FPref
         MATCH_AI_SIDEBOARDING_MODE("Human For AI"),
         MATCH_AI_TIMEOUT("5"),
         UI_ENABLE_AI_CHEATS ("false"),
+
+        // Ultima AI LLM settings
+        ULTIMA_LLM_ENDPOINT(""),
+        ULTIMA_LLM_API_KEY(""),
+        ULTIMA_LLM_MODEL("qwen3:8b"),
+        ULTIMA_LLM_TEMPERATURE("0.1"),
         MATCH_EXPERIMENTAL_RESTORE("false"),
 
         ENFORCE_DECK_LEGALITY ("true"),

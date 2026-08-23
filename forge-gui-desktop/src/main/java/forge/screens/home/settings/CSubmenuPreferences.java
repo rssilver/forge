@@ -227,8 +227,10 @@ public enum CSubmenuPreferences implements ICDoc {
         initializePlayerNameButton();
         initializeServerPortButton();
         initializeAfkTimeoutButton();
+        initializeTestLLMConnectionButton();
         initializeDefaultLanguageComboBox();
         initializeActionableHighlightColorField();
+        initializeLLMSettingsFields();
 
         disableLazyLoading();
     }
@@ -240,6 +242,35 @@ public enum CSubmenuPreferences implements ICDoc {
             @Override public void focusLost(java.awt.event.FocusEvent e) { saveActionableHighlightColor(field); }
         });
         field.addActionListener(e -> saveActionableHighlightColor(field));
+    }
+
+    private void initializeLLMSettingsFields() {
+        final forge.toolbox.FTextField endpoint = view.getTxtLLMEndpoint();
+        endpoint.setText(prefs.getPref(FPref.ULTIMA_LLM_ENDPOINT));
+        addSaveOnFocus(endpoint, FPref.ULTIMA_LLM_ENDPOINT);
+
+        final forge.toolbox.FTextField apiKey = view.getTxtLLMApiKey();
+        apiKey.setText(prefs.getPref(FPref.ULTIMA_LLM_API_KEY));
+        addSaveOnFocus(apiKey, FPref.ULTIMA_LLM_API_KEY);
+
+        final forge.toolbox.FTextField model = view.getTxtLLMModel();
+        model.setText(prefs.getPref(FPref.ULTIMA_LLM_MODEL));
+        addSaveOnFocus(model, FPref.ULTIMA_LLM_MODEL);
+
+        final forge.toolbox.FTextField temp = view.getTxtLLMTemperature();
+        temp.setText(prefs.getPref(FPref.ULTIMA_LLM_TEMPERATURE));
+        addSaveOnFocus(temp, FPref.ULTIMA_LLM_TEMPERATURE);
+    }
+
+    private void addSaveOnFocus(
+            forge.toolbox.FTextField field, FPref prefKey) {
+        field.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                if (updating) return;
+                prefs.setPref(prefKey, field.getText().trim());
+                prefs.save();
+            }
+        });
     }
 
     private void saveActionableHighlightColor(forge.toolbox.FTextField field) {
@@ -815,5 +846,95 @@ public enum CSubmenuPreferences implements ICDoc {
             GamePlayerUtil.setAfkTimeout();
             setAfkTimeoutButtonText();
         };
+    }
+
+    // Ultima AI LLM connection test button
+    private void initializeTestLLMConnectionButton() {
+        final FLabel btn = view.getBtnTestLLMConnection();
+        btn.setCommand(getTestLLMConnectionCommand());
+    }
+
+    @SuppressWarnings("serial")
+    private UiCommand getTestLLMConnectionCommand() {
+        return () -> {
+            String endpoint = view.getTxtLLMEndpoint().getText();
+            if (endpoint == null || endpoint.trim().isEmpty()) {
+                FOptionPane.showMessageDialog("Please enter an API endpoint first.", "Ultima AI");
+                return;
+            }
+
+            String model = view.getTxtLLMModel().getText();
+            if (model == null || model.trim().isEmpty()) {
+                model = "default";
+            }
+
+            btnTestConnection(view.getBtnTestLLMConnection(), endpoint, model);
+        };
+    }
+
+    private void btnTestConnection(FLabel button, String endpoint, String model) {
+        // Disable button and show loading state while testing
+        String originalText = button.getText();
+        button.setText("Testing...");
+        button.setEnabled(false);
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                String result = testLLMConnection(endpoint, model);
+                if (result != null) {
+                    FOptionPane.showMessageDialog("Connection successful!\n\n" + result, "Ultima AI - Test Passed");
+                } else {
+                    FOptionPane.showMessageDialog("Connection failed.\nCheck your endpoint URL and network settings.", "Ultima AI - Test Failed");
+                }
+            } finally {
+                button.setText(originalText);
+                button.setEnabled(true);
+            }
+        });
+    }
+
+    private String testLLMConnection(String endpoint, String model) {
+        try {
+            java.net.URL url = new java.net.URL(endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            String body = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one word.\"}]}";
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes());
+            }
+
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                return null;
+            }
+
+            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
+            // Extract the response text from JSON
+            String json = sb.toString();
+            int idx = json.indexOf("\"content\":\"");
+            if (idx >= 0) {
+                idx += 9;
+                int end = json.indexOf("\"", idx);
+                if (end > idx) {
+                    return "Model: " + model + "\nResponse: " + json.substring(idx, end);
+                }
+            }
+            return "Connected to endpoint.";
+
+        } catch (Exception e) {
+            System.err.println("Ultima LLM connection test failed: " + e.getMessage());
+            return null;
+        }
     }
 }

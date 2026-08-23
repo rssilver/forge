@@ -401,14 +401,26 @@ public class PlayerPanel extends FPanel {
                     if (i == 2) {
                         return Set.of(AIOption.USE_FULL_SIMULATION);
                     }
+                    if (i == 3) {
+                        return Set.of(AIOption.USE_ULTIMA);
+                    }
                 }
             }
         }
         return Collections.emptySet();
     }
     public void setUseAiSimulation(Set<AIOption> options) {
-        ((JRadioButtonMenuItem) radioAiUseSimulation.getComponent(options.contains(AIOption.USE_FULL_SIMULATION) ? 2 : options.contains(AIOption.USE_HYBRID_SIMULATION) ? 1 : 0))
-                .setSelected(true);
+        int idx;
+        if (options.contains(AIOption.USE_FULL_SIMULATION)) {
+            idx = 2;
+        } else if (options.contains(AIOption.USE_HYBRID_SIMULATION)) {
+            idx = 1;
+        } else if (options.contains(AIOption.USE_ULTIMA)) {
+            idx = 3;
+        } else {
+            idx = 0;
+        }
+        ((JRadioButtonMenuItem) radioAiUseSimulation.getComponent(idx)).setSelected(true);
     }
 
     public boolean isArchenemy() {
@@ -581,6 +593,10 @@ public class PlayerPanel extends FPanel {
         group.add(item);
         radioAiUseSimulation.add(item);
         item = new JRadioButtonMenuItem(localizer.getMessage("lblUseSimulation"));
+        item.addActionListener(e -> lobby.firePlayerChangeListener(index));
+        group.add(item);
+        radioAiUseSimulation.add(item);
+        item = new JRadioButtonMenuItem("Ultima AI");
         item.addActionListener(e -> lobby.firePlayerChangeListener(index));
         group.add(item);
         radioAiUseSimulation.add(item);
