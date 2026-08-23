@@ -256,23 +256,7 @@ public final class FModel {
         AiProfileUtil.loadAllProfiles(ForgeConstants.AI_PROFILE_DIR);
         AiProfileUtil.setAiSideboardingMode(AiProfileUtil.AISideboardingMode.normalizedValueOf(getPreferences().getPref(FPref.MATCH_AI_SIDEBOARDING_MODE)));
 
-        // Bridge Ultima LLM preferences to system properties so AiProfileUtil can read them
-        String endpoint = getPreferences().getPref(FPref.ULTIMA_LLM_ENDPOINT);
-        if (endpoint != null && !endpoint.isEmpty()) {
-            System.setProperty("forge.ai.ultima_llm_endpoint", endpoint);
-        }
-        String apiKey = getPreferences().getPref(FPref.ULTIMA_LLM_API_KEY);
-        if (apiKey != null && !apiKey.isEmpty()) {
-            System.setProperty("forge.ai.ultima_llm_api_key", apiKey);
-        }
-        String model = getPreferences().getPref(FPref.ULTIMA_LLM_MODEL);
-        if (model != null && !model.isEmpty()) {
-            System.setProperty("forge.ai.ultima_llm_model", model);
-        }
-        String temp = getPreferences().getPref(FPref.ULTIMA_LLM_TEMPERATURE);
-        if (temp != null && !temp.isEmpty()) {
-            System.setProperty("forge.ai.ultima_llm_temperature", temp);
-        }
+        syncUltimaLlmProperties();
 
         // Generate Deck Gen matrix
         if(getPreferences().getPrefBoolean(FPref.DECKGEN_CARDBASED)) {
@@ -281,6 +265,27 @@ public final class FModel {
             if(!commanderDeckGenMatrixLoaded){
                 deckGenMatrixLoaded=false;
             }
+        }
+    }
+
+    /**
+     * Bridges the Ultima LLM preferences to system properties so {@link forge.ai.AiProfileUtil}
+     * can read them. Called at startup and again whenever the settings are changed in the UI,
+     * so edits take effect without restarting Forge. Empty values clear the property so a
+     * previously set value doesn't linger (e.g. after clearing the API key).
+     */
+    public static void syncUltimaLlmProperties() {
+        setUltimaLlmProperty("forge.ai.ultima_llm_endpoint", getPreferences().getPref(FPref.ULTIMA_LLM_ENDPOINT));
+        setUltimaLlmProperty("forge.ai.ultima_llm_api_key", getPreferences().getPref(FPref.ULTIMA_LLM_API_KEY));
+        setUltimaLlmProperty("forge.ai.ultima_llm_model", getPreferences().getPref(FPref.ULTIMA_LLM_MODEL));
+        setUltimaLlmProperty("forge.ai.ultima_llm_temperature", getPreferences().getPref(FPref.ULTIMA_LLM_TEMPERATURE));
+    }
+
+    private static void setUltimaLlmProperty(String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            System.setProperty(key, value);
+        } else {
+            System.clearProperty(key);
         }
     }
 

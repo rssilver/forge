@@ -146,6 +146,7 @@ public class UltimaController {
     /** Get LLM advice for the current game state. */
     private UltimaLLMResponse getLLMAdvice() {
         String endpoint = AiProfileUtil.getProperty(player, AiProps.ULTIMA_LLM_ENDPOINT);
+        String apiKey = AiProfileUtil.getProperty(player, AiProps.ULTIMA_LLM_API_KEY);
         String model = AiProfileUtil.getProperty(player, AiProps.ULTIMA_LLM_MODEL);
         double temp;
         try {
@@ -162,6 +163,7 @@ public class UltimaController {
 
         llmConfig = new LLMConfig();
         llmConfig.setEndpoint(endpoint);
+        llmConfig.setApiKey(apiKey);
         llmConfig.setModel(model);
         llmConfig.setTemperature(temp);
         llmConfig.setTimeoutSeconds(timeout);

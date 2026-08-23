@@ -6,6 +6,7 @@ package forge.ai.ultima;
  */
 public class LLMConfig {
     private String endpoint = "http://localhost:1234/v1";
+    private String apiKey = "";
     private String model = "";
     private double temperature = 0.1;
     private int timeoutSeconds = 15;
@@ -17,6 +18,8 @@ public class LLMConfig {
     // Getters and setters
     public String getEndpoint() { return endpoint; }
     public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+    public String getApiKey() { return apiKey; }
+    public void setApiKey(String apiKey) { this.apiKey = apiKey == null ? "" : apiKey.trim(); }
 
     public String getModel() { return model; }
     public void setModel(String model) { this.model = model; }

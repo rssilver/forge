@@ -72,6 +72,9 @@ public class LLMClient {
             conn.setConnectTimeout(config.getTimeoutSeconds() * 1000);
             conn.setReadTimeout(config.getTimeoutSeconds() * 1000);
             conn.setRequestProperty("Content-Type", "application/json");
+            if (!config.getApiKey().isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + config.getApiKey());
+            }
             conn.setDoOutput(true);
 
             String body = buildRequestBody(prompt);
@@ -185,8 +188,12 @@ public class LLMClient {
 
     private int findMatchingQuote(String s, int start) {
         for (int i = start + 1; i < s.length(); i++) {
-            if (s.charAt(i) == '\\' && i + 1 < s.length()) continue; // skip escaped char
-            if (s.charAt(i) == '"') return i;
+            char c = s.charAt(i);
+            if (c == '\\') {
+                i++; // skip the escaped character so \" doesn't end the string early
+            } else if (c == '"') {
+                return i;
+            }
         }
         return -1;
     }

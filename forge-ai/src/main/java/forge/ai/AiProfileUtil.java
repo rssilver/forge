@@ -117,19 +117,36 @@ public class AiProfileUtil {
     public static String getProperty(final Player p, final AiProps propName) {
         String prop = AiProfileUtil.getAIProp(p.getLobbyPlayer(), propName);
 
-        if (prop == null || prop.isEmpty()) {
-            // Check system property as fallback (set by ForgePreferences at startup)
-            String sysKey = "forge.ai." + propName.name().toLowerCase();
-            String sysVal = System.getProperty(sysKey);
-            if (sysVal != null && !sysVal.isEmpty()) {
-                return sysVal;
-            }
+        // GUI preference bridge: FModel copies ForgePreferences into system properties at startup.
+        String sysKey = "forge.ai." + propName.name().toLowerCase();
+        return resolveProperty(prop, System.getProperty(sysKey), propName);
+    }
+
+    /**
+     * Resolves the effective value for an AI property from its three possible sources:
+     * a profile value, a live GUI setting (system property), and the hardcoded default.
+     *
+     * Precedence rules:
+     * <ul>
+     *   <li>No profile value -> the GUI setting wins if present, else the default.</li>
+     *   <li>Profile value equals the default -> a GUI override still wins (lets users change
+     *       e.g. temperature in Preferences without editing the profile file).</li>
+     *   <li>Otherwise the explicit profile value wins.</li>
+     * </ul>
+     */
+    static String resolveProperty(final String profileValue, final String sysVal, final AiProps propName) {
+        if (profileValue == null || profileValue.isEmpty()) {
             // TODO if p is human try to predict some values from previous plays or something
-            return propName.getDefault();
+            return (sysVal != null && !sysVal.isEmpty()) ? sysVal : propName.getDefault();
         }
 
-        return prop;
+        if (profileValue.equals(propName.getDefault()) && sysVal != null && !sysVal.isEmpty()) {
+            return sysVal;
+        }
+
+        return profileValue;
     }
+
     public static int getIntProperty(final Player p, final AiProps propName) {
         return Integer.parseInt(getProperty(p, propName));
     }

@@ -341,7 +341,11 @@
                 <executions>
                     <execution>
                         <id>flatten</id>
-                        <phase>deploy</phase>
+                        <!-- Run before install so the flattened (concrete-version) POM is what gets
+                             installed to the local repo. This lets a module be built/tested standalone
+                             without -am, since its sibling dependencies resolve from ~/.m2 with real
+                             versions instead of an unresolved ${revision} parent reference. -->
+                        <phase>process-resources</phase>
                         <goals>
                             <goal>flatten</goal>
                         </goals>

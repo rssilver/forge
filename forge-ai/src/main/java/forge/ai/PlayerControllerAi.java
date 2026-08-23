@@ -1547,6 +1547,11 @@ public class PlayerControllerAi extends PlayerController {
     public void resetAtEndOfTurn() {
         // TODO - if card memory is ever used to remember something for longer than a turn, make sure it's not reset here.
         getAi().getCardMemory().clearAllRemembered();
+
+        // CreatureEvaluator's cache is static and shared across all AI players/games. Its values
+        // depend on mutable card state (net power/toughness from auras and pumps), so drop it at
+        // the end of each turn to avoid scoring with stale numbers.
+        CreatureEvaluator.clearCache();
     }
 
     @Override

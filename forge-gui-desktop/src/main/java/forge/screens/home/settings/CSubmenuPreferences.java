@@ -269,6 +269,8 @@ public enum CSubmenuPreferences implements ICDoc {
                 if (updating) return;
                 prefs.setPref(prefKey, field.getText().trim());
                 prefs.save();
+                // Push the change to the running AI immediately so it applies without a restart.
+                FModel.syncUltimaLlmProperties();
             }
         });
     }

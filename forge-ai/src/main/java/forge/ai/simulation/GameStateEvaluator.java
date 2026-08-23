@@ -110,6 +110,12 @@ public class GameStateEvaluator {
             return getTerminalScore(game, aiPlayer);
         }
 
+        // The permanent cache is keyed only by card id and holds values that depend on the
+        // current board (e.g. planeswalker loyalty). Clear it so each state evaluation starts
+        // fresh; otherwise a reused evaluator (AlphaBetaEngine, GameSimulator) would score new
+        // positions with stale values from an earlier one.
+        clearPermanentCache();
+
         CombatSimResult result = simulateUpcomingCombatThisTurn(game, aiPlayer);
         if (result != null) {
             Player aiPlayerCopy = (Player) result.copier.find(aiPlayer);
