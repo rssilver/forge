@@ -15,9 +15,15 @@ import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerType;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class CreatureEvaluator implements Function<Card, Integer> {
+
+    // Per-turn cache: key = (cardId << 16) | (considerPT ? 0x8000 : 0) | (considerCMC ? 0x4000 : 0)
+    // Value = evaluation result. Cleared at end of each turn via clearCache().
+    private static final ConcurrentHashMap<Integer, Integer> EVALUATION_CACHE = new ConcurrentHashMap<>();
+
     @Override
     public Integer apply(Card c) {
         return evaluateCreature(c);
@@ -30,6 +36,15 @@ public class CreatureEvaluator implements Function<Card, Integer> {
         //Card shouldn't be null and AI shouldn't crash since this is just score
         if (c == null)
             return 0;
+
+        // Fast-path cache: same card + same params -> skip expensive re-evaluation.
+        // The key packs card ID (up to 15 bits) with the two boolean flags.
+        int cacheKey = (c.getId() << 2) | (considerPT ? 0b10 : 0) | (considerCMC ? 0b01 : 0);
+        Integer cached = EVALUATION_CACHE.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
         int value = 80;
         if (!c.isToken()) {
             value += addValue(20, "non-token"); // tokens should be worth less than actual cards
@@ -290,7 +305,13 @@ public class CreatureEvaluator implements Function<Card, Integer> {
             value += AbilityUtils.calculateAmount(c, c.getSVar("AIEvaluationModifier"), null);
         }
 
+        EVALUATION_CACHE.put(cacheKey, value);
         return value;
+    }
+
+    /** Clear the evaluation cache. Call this at end of each turn or when game state changes significantly. */
+    public static void clearCache() {
+        EVALUATION_CACHE.clear();
     }
 
     private int evaluateSpellAbility(SpellAbility sa) {

@@ -15,7 +15,9 @@ import forge.game.staticability.StaticAbility;
 import forge.game.zone.ZoneType;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static java.lang.Math.max;
@@ -24,6 +26,10 @@ import static java.lang.Math.min;
 public class GameStateEvaluator {
     private boolean debugging = false;
     private SimulationCreatureEvaluator eval = new SimulationCreatureEvaluator();
+
+    // Per-evaluation cache for non-creature cards (lands, enchantments, artifacts).
+    // Key = card ID, Value = evaluated score. Cleared between game state evaluations.
+    private final Map<Integer, Integer> permanentCache = new HashMap<>();
 
     public void setDebugging(boolean debugging) {
         this.debugging = debugging;
@@ -255,21 +261,33 @@ public class GameStateEvaluator {
         if (c.isCreature()) {
             return eval.evaluateCreature(c);
         } else if (c.isLand()) {
-            return evaluateLand(c);
+            int cached = permanentCache.getOrDefault(c.getId(), Integer.MIN_VALUE);
+            if (cached != Integer.MIN_VALUE) return cached;
+            int value = evaluateLand(c);
+            permanentCache.put(c.getId(), value);
+            return value;
         } else if (c.isEnchantingCard()) {
             // TODO: Should provide value in whatever it's enchanting?
             // Else the computer would think that casting a Lifelink enchantment
             // on something that already has lifelink is a net win.
             return 0;
         } else {
+            int cached = permanentCache.getOrDefault(c.getId(), Integer.MIN_VALUE);
+            if (cached != Integer.MIN_VALUE) return cached;
             // TODO treat cards like Captive Audience negative
             // e.g. a 5 CMC permanent results in 200, whereas a 5/5 creature is ~225
             int value = 50 + 30 * c.getCMC();
             if (c.isPlaneswalker()) {
                 value += 2 * c.getCounters(CounterEnumType.LOYALTY);
             }
+            permanentCache.put(c.getId(), value);
             return value;
         }
+    }
+
+    /** Clear the permanent cache. Call this between game state evaluations when card states may have changed. */
+    public void clearPermanentCache() {
+        permanentCache.clear();
     }
 
     public static int evaluateLand(Card c) {
