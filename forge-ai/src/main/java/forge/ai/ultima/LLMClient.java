@@ -118,7 +118,12 @@ public class LLMClient {
     }
 
     private UltimaLLMResponse readErrorMessage(HttpURLConnection conn) throws IOException {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+        // Non-2xx responses write their body to the *error* stream; getInputStream() would throw.
+        java.io.InputStream in = conn.getErrorStream();
+        if (in == null) {
+            return new UltimaLLMResponse("No recommendation", "LLM returned no error detail", List.of(), List.of());
+        }
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine()) != null) {
