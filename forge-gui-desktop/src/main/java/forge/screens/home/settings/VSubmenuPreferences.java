@@ -167,11 +167,11 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
             .build();
 
     private JPanel getLabeledTextField(String label, FTextField field) {
-        JPanel p = new JPanel(new MigLayout("insets 0, gap 0!"));
+        JPanel p = new JPanel(new MigLayout("insets 0, gap 0!, fillx"));
         p.setOpaque(false);
         FLabel lbl = new FLabel.Builder().text(label + ": ").fontSize(12).fontStyle(Font.BOLD).build();
         p.add(lbl, "aligny top, h 100%, gap 4px 0 0 0");
-        p.add(field, "aligny top, h 100%, w 80%!");
+        p.add(field, "aligny top, h 100%, growx, pushx");
         return p;
     }
 
