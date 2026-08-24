@@ -897,12 +897,20 @@ public enum CSubmenuPreferences implements ICDoc {
 
     private String testLLMConnection(String endpoint, String model) {
         try {
-            java.net.URL url = new java.net.URL(endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint);
+            // Use the same URL logic as the real AI client (forge.ai.ultima.LLMClient) so a "Test Passed"
+            // actually means the in-game LLM calls will reach the right place.
+            forge.ai.ultima.LLMConfig cfg = new forge.ai.ultima.LLMConfig();
+            cfg.setEndpoint(endpoint);
+            java.net.URL url = new java.net.URL(cfg.getChatCompletionsUrl());
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);
             conn.setRequestProperty("Content-Type", "application/json");
+            String apiKey = view.getTxtLLMApiKey().getText();
+            if (apiKey != null && !apiKey.trim().isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey.trim());
+            }
             conn.setDoOutput(true);
 
             String body = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one word.\"}]}";
