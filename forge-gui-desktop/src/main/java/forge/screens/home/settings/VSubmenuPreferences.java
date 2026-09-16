@@ -192,6 +192,15 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
             .opaque(true).hoverable(true)
             .text("Test Connection")
             .build();
+    // Free-form "Send Message" control: an editable prompt area, a send button, and a read-only
+    // output area that shows the LLM's reply. The prompt area is made editable/focusable (the default
+    // FTextArea is read-only); the response area stays non-editable so it reads as pure output.
+    private final FTextArea txtLLMPrompt = newEditableTextArea();
+    private final FLabel btnSendLLMMessage = new FLabel.Builder()
+            .opaque(true).hoverable(true)
+            .text("Send Message")
+            .build();
+    private final FTextArea txtLLMResponse = new FTextArea();
 
     private JPanel getLabeledTextField(String label, FTextField field) {
         JPanel p = new JPanel(new MigLayout("insets 0, gap 0!, fillx"));
@@ -335,6 +344,28 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
         pnlPrefs.add(new NoteLabel("Temperature 0.0-1.0; lower = more deterministic"), descriptionConstraints);
         pnlPrefs.add(btnTestLLMConnection, "w 45%!, h 30px!, gap 25px 0 0 5px");
         pnlPrefs.add(new NoteLabel(""), comboBoxConstraints);
+
+        // Free-form message control: prompt area + send button on one row, response output below.
+        JPanel promptRow = new JPanel(new MigLayout("insets 0, gap 4!, fillx"));
+        promptRow.setOpaque(false);
+        FLabel lblPrompt = new FLabel.Builder().text("Send a Message: ").fontSize(12).fontStyle(Font.BOLD).build();
+        txtLLMPrompt.setPreferredSize(new Dimension(0, 56));
+        promptRow.add(lblPrompt, "aligny top");
+        promptRow.add(txtLLMPrompt, "w 80%!, h 56px!, growx, pushx");
+        pnlPrefs.add(promptRow, "w 80%!, gap 25px 0 0 0px, span 2 1");
+
+        JPanel sendRow = new JPanel(new MigLayout("insets 0, gap 4!, fillx"));
+        sendRow.setOpaque(false);
+        sendRow.add(btnSendLLMMessage, "aligny top");
+        pnlPrefs.add(sendRow, "w 80%!, h 30px!, gap 25px 0 0 5px, span 2 1");
+
+        JPanel responseRow = new JPanel(new MigLayout("insets 0, gap 0!, fillx"));
+        responseRow.setOpaque(false);
+        FLabel lblResponse = new FLabel.Builder().text("Reply: ").fontSize(12).fontStyle(Font.BOLD).build();
+        txtLLMResponse.setPreferredSize(new Dimension(0, 96));
+        responseRow.add(lblResponse, "aligny top");
+        responseRow.add(txtLLMResponse, "w 80%!, h 96px!, growx, pushx");
+        pnlPrefs.add(responseRow, "w 80%!, gap 25px 0 0 0px, span 2 1");
 
         pnlPrefs.add(cbOrderHand, titleConstraints);
         pnlPrefs.add(new NoteLabel(localizer.getMessage("nlOrderHand")), descriptionConstraints);
@@ -1455,4 +1486,23 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
     public FTextField getTxtLLMModel()         { return txtLLMModel; }
     public FTextField getTxtLLMTemperature()   { return txtLLMTemperature; }
     public FLabel     getBtnTestLLMConnection(){ return btnTestLLMConnection; }
+
+    /** Builds an editable, focusable prompt area (the default FTextArea is read-only). */
+    private static FTextArea newEditableTextArea() {
+        FTextArea ta = new FTextArea();
+        ta.setText("");
+        ta.setOpaque(true);
+        ta.setEditable(true);
+        ta.setFocusable(true);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        return ta;
+    }
+
+    /** @return the editable prompt area for the free-form "Send Message" control. */
+    public FTextArea getTxtLLMPrompt()         { return txtLLMPrompt; }
+    /** @return the read-only output area showing the LLM's reply. */
+    public FTextArea getTxtLLMResponse()       { return txtLLMResponse; }
+    /** @return the "Send Message" button that triggers a free-form chat request. */
+    public FLabel     getBtnSendLLMMessage()   { return btnSendLLMMessage; }
 }

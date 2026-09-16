@@ -29,6 +29,7 @@ import forge.toolbox.FComboBox;
 import forge.toolbox.FComboBoxPanel;
 import forge.toolbox.FLabel;
 import forge.toolbox.FOptionPane;
+import forge.toolbox.FTextArea;
 import forge.util.Localizer;
 import forge.view.arcane.PlayArea;
 import org.apache.commons.lang3.StringUtils;
@@ -229,6 +230,7 @@ public enum CSubmenuPreferences implements ICDoc {
         initializeServerPortButton();
         initializeAfkTimeoutButton();
         initializeTestLLMConnectionButton();
+        initializeSendLLMMessageButton();
         initializeDefaultLanguageComboBox();
         initializeActionableHighlightColorField();
         initializeLLMSettingsFields();
@@ -987,5 +989,57 @@ public enum CSubmenuPreferences implements ICDoc {
             System.err.println("Ultima LLM connection test failed: " + e.getMessage());
             return null;
         }
+    }
+
+    /** Wire the free-form "Send Message" button to run a chat() request off the EDT. */
+    private void initializeSendLLMMessageButton() {
+        FLabel btn = view.getBtnSendLLMMessage();
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                handleSendLLMMessage();
+            }
+        });
+    }
+
+    private void handleSendLLMMessage() {
+        FTextArea prompt = view.getTxtLLMPrompt();
+        FTextArea response = view.getTxtLLMResponse();
+        String message = prompt.getText();
+        if (message == null || message.trim().isEmpty()) {
+            response.setText("Enter a message to send.");
+            return;
+        }
+
+        // Disable the button and show a loading state while the request runs.
+        FLabel sendBtn = view.getBtnSendLLMMessage();
+        sendBtn.setText("Sending...");
+        sendBtn.setEnabled(false);
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                String endpoint = view.getTxtLLMEndpoint().getText();
+                String model = view.getTxtLLMModel().getText();
+                forge.ai.ultima.LLMConfig cfg = new forge.ai.ultima.LLMConfig();
+                cfg.setEndpoint(endpoint);
+                cfg.setModel(model);
+                cfg.setApiKey(view.getTxtLLMApiKey().getText());
+                cfg.setEnabled(true);
+
+                String reply = new forge.ai.ultima.LLMClient(cfg).chat(message);
+                if (reply == null) {
+                    response.setText("No reply from the endpoint. Check the API key, model name and endpoint.");
+                } else {
+                    response.setText(reply);
+                }
+            } catch (Exception ex) {
+                System.err.println("Ultima LLM send message failed: " + ex.getMessage());
+                response.setText("Failed to send message: " + ex.getMessage());
+            } finally {
+                FLabel btn = view.getBtnSendLLMMessage();
+                btn.setText("Send Message");
+                btn.setEnabled(true);
+            }
+        });
     }
 }

@@ -139,4 +139,33 @@ public class LLMClientIntegrationTest {
         Assert.assertNull(capturedAuth, "no Authorization header expected when the API key is empty");
         Assert.assertNotNull(resp);
     }
+
+    @Test
+    public void testChatSendsAuthorizationHeaderAndParsesContent() throws Exception {
+        // The free-form "Send Message" path must reach the same endpoint with the same auth as query().
+        String reply = new LLMClient(config()).chat("What is your best play?");
+
+        Assert.assertTrue(requestReceived.await(5, TimeUnit.SECONDS), "server should have received the chat request");
+        Assert.assertEquals(capturedAuth, "Bearer sk-test-key", "API key must be sent as a Bearer token");
+        Assert.assertEquals(capturedContentType, "application/json");
+        Assert.assertTrue(capturedBody.contains("\"model\":\"test-model\""), "body should name the model");
+        // The user's free-form message is forwarded verbatim in the request body.
+        Assert.assertTrue(capturedBody.contains("What is your best play?"), "user message must be sent");
+
+        // chat() returns the assistant content extracted from the OpenAI-style envelope.
+        Assert.assertNotNull(reply);
+        Assert.assertTrue(reply.contains("recommended_action"), "parsed reply should carry the assistant content");
+    }
+
+    @Test
+    public void testChatNoApiKeyStillSendsRequest() throws Exception {
+        // LM Studio / local endpoints often have no API key; chat must still reach them.
+        LLMConfig c = config();
+        c.setApiKey("");
+        String reply = new LLMClient(c).chat("hello");
+
+        Assert.assertTrue(requestReceived.await(5, TimeUnit.SECONDS), "request should still be sent with no key");
+        Assert.assertNull(capturedAuth, "no Authorization header expected when the API key is empty");
+        Assert.assertNotNull(reply);
+    }
 }

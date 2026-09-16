@@ -47,6 +47,97 @@ public class LLMClient {
         return response != null ? List.of(response) : List.of();
     }
 
+    /**
+     * Send a free-form message to the configured LLM and return the assistant's reply text.
+     *
+     * <p>Unlike {@link #query(String)}, this does not format a game state or consult the enabled
+     * flag — it exists so an endpoint can be exercised directly with arbitrary user input (e.g. the
+     * "Send Message" control in Preferences). It reuses the same endpoint, auth header, model and
+     * timeout plumbing as {@link #query}. Returns null on any failure, timeout, or non-2xx response
+     * that yields no usable content.
+     */
+    public String chat(String message) {
+        try {
+            URI uri = new URI(config.getChatCompletionsUrl());
+            HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(config.getTimeoutSeconds() * 1000);
+            conn.setReadTimeout(config.getTimeoutSeconds() * 1000);
+            conn.setRequestProperty("Content-Type", "application/json");
+            if (!config.getApiKey().isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + config.getApiKey());
+            }
+            conn.setDoOutput(true);
+
+            String body = buildChatRequestBody(message);
+            try (var os = conn.getOutputStream()) {
+                os.write(body.getBytes());
+            }
+
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                return readErrorMessageText(conn);
+            }
+
+            return parseChatResponse(conn);
+
+        } catch (Exception e) {
+            System.err.println("Ultima LLM chat failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String buildChatRequestBody(String message) {
+        List<String> models = List.of(config.getModel(), "default", "llama3");
+        String modelToUse = models.stream().filter(m -> !m.isEmpty()).findFirst().orElse("default");
+
+        return "{\"model\":\"" + modelToUse + "\",\"temperature\":" + config.getTemperature()
+                + ",\"messages\":[{\"role\":\"user\",\"content\":\"" + escapeJson(message) + "\"}]}";
+    }
+
+    private String parseChatResponse(HttpURLConnection conn) throws IOException {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+            return extractAssistantContent(sb.toString());
+        }
+    }
+
+    private String readErrorMessageText(HttpURLConnection conn) throws IOException {
+        // Non-2xx responses write their body to the *error* stream; getInputStream() would throw.
+        java.io.InputStream in = conn.getErrorStream();
+        if (in == null) {
+            return "The endpoint rejected the request but returned no error detail.";
+        }
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+            return extractAssistantContent(sb.toString());
+        }
+    }
+
+    /** Pull the assistant message text out of an OpenAI-style chat completion JSON response. */
+    private String extractAssistantContent(String json) {
+        int idx = json.indexOf("\"content\":\"");
+        if (idx >= 0) {
+            idx += "\"content\":\"".length();
+            // The content value may itself be escaped JSON (e.g. {\"recommended_action\":...}), so the
+            // closing quote must skip backslash escapes rather than stopping at the first inner quote.
+            int end = findMatchingQuote(json, idx);
+            if (end > idx) {
+                return unescapeJson(json.substring(idx, end));
+            }
+        }
+        // Fallback: surface whatever non-empty body we got so a failure is still visible.
+        return json.isEmpty() ? null : json;
+    }
+
     private String buildPrompt(String gameStateDescription) {
         return """
                 You are an expert Magic: The Gathering strategist analyzing a game state.
