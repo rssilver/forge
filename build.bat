@@ -53,5 +53,5 @@ goto :eof
 :do_run
 echo [run] Compiling and launching Forge desktop...
 mvn -f pom.xml compile -q
-call run-forge.bat
+call run.bat
 goto :eof

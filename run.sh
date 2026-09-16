@@ -2,7 +2,7 @@
 
 # ============================================================
 # Forge MTG - Unix/Mac Launcher Script
-# Usage: ./run-forge.sh [build]
+# Usage: ./run.sh [build]
 #   build  - Rebuilds the project before launching (optional)
 # ============================================================
 

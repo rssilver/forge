@@ -100,6 +100,10 @@ __pycache__
 
 # Ignore Claude configuration
 .claude
+
+# Ignore Cortex tooling directory (no source code)
+.cortex/
+
 # EDHREC commander matrix tool intermediates
 forge-gui/tools/build
 forge-gui-ios/robovm.properties

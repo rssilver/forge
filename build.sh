@@ -43,7 +43,7 @@ case "$TARGET" in
   run)
     echo "[run] Compiling and launching Forge desktop..."
     mvn -f pom.xml compile -q
-    bash "$SCRIPT_DIR/run-forge.sh"
+    bash "$SCRIPT_DIR/run.sh"
     ;;
   *)
     echo "Usage: $0 {clean|compile|package|test|install|run}"

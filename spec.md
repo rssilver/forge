@@ -216,7 +216,7 @@ This section provides a mapping of the physical directory structure to the funct
 ### Root Directory
 *   `pom.xml`: Main Maven project configuration.
 *   `build.sh`/`build.bat`: Build scripts for different environments.
-*   `run-forge.sh`/`run-forge.bat`: Execution scripts to launch the application.
+*   `run.sh`/`run.bat`: Execution scripts to launch the application.
 
 ### Module Mapping
 *   **Core**: `/forge-core` $\rightarrow$ See [Core Logic](#core-logic).

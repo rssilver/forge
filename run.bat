@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ============================================================
 REM Forge MTG - Windows Launcher Script
-REM Usage: run-forge.bat [build]
+REM Usage: run.bat [build]
 REM   build  - Rebuilds the project before launching (optional)
 REM ============================================================
 
