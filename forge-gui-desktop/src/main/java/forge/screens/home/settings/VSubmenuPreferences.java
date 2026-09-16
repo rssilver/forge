@@ -47,7 +47,31 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
     private final DragTab tab = new DragTab(localizer.getMessage("Preferences"));
 
     /** */
-    private final JPanel pnlPrefs = new JPanel();
+    // The content panel lays out every row with percentage constraints (w 80%!). Without a bounded
+    // reference width, MigLayout resolves those percentages against an unbounded preferred size and the
+    // whole panel balloons to millions of pixels wide, stretching each field/button into a wide dark bar.
+    // Clamp the panel's size to its container's available width (with a sane fallback) so percentage rows
+    // resolve against real space; vertical overflow is handled by the enclosing scroll pane.
+    private final JPanel pnlPrefs = new JPanel() {
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(getBoundedWidth(), Integer.MAX_VALUE);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            Dimension d = super.getPreferredSize();
+            return new Dimension(getBoundedWidth(), d.height);
+        }
+
+        private int getBoundedWidth() {
+            Container c = getParent();
+            if (c != null && c.getWidth() > 0) {
+                return Math.max(320, c.getWidth() - 40);
+            }
+            return 960; // fallback when no container is attached yet
+        }
+    };
     private final FScrollPane scrContent = new FScrollPane(pnlPrefs, false,
     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
