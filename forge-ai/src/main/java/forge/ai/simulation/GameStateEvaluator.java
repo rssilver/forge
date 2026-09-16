@@ -266,29 +266,30 @@ public class GameStateEvaluator {
         // TODO: These should be based on other considerations - e.g. in relation to opponents state.
         if (c.isCreature()) {
             return eval.evaluateCreature(c);
-        } else if (c.isLand()) {
+        }
+        if (c.isLand()) {
             int cached = permanentCache.getOrDefault(c.getId(), Integer.MIN_VALUE);
             if (cached != Integer.MIN_VALUE) return cached;
             int value = evaluateLand(c);
             permanentCache.put(c.getId(), value);
             return value;
-        } else if (c.isEnchantingCard()) {
+        }
+        if (c.isEnchantingCard()) {
             // TODO: Should provide value in whatever it's enchanting?
             // Else the computer would think that casting a Lifelink enchantment
             // on something that already has lifelink is a net win.
             return 0;
-        } else {
-            int cached = permanentCache.getOrDefault(c.getId(), Integer.MIN_VALUE);
-            if (cached != Integer.MIN_VALUE) return cached;
-            // TODO treat cards like Captive Audience negative
-            // e.g. a 5 CMC permanent results in 200, whereas a 5/5 creature is ~225
-            int value = 50 + 30 * c.getCMC();
-            if (c.isPlaneswalker()) {
-                value += 2 * c.getCounters(CounterEnumType.LOYALTY);
-            }
-            permanentCache.put(c.getId(), value);
-            return value;
         }
+        int cached = permanentCache.getOrDefault(c.getId(), Integer.MIN_VALUE);
+        if (cached != Integer.MIN_VALUE) return cached;
+        // TODO treat cards like Captive Audience negative
+        // e.g. a 5 CMC permanent results in 200, whereas a 5/5 creature is ~225
+        int value = 50 + 30 * c.getCMC();
+        if (c.isPlaneswalker()) {
+            value += 2 * c.getCounters(CounterEnumType.LOYALTY);
+        }
+        permanentCache.put(c.getId(), value);
+        return value;
     }
 
     /** Clear the permanent cache. Call this between game state evaluations when card states may have changed. */

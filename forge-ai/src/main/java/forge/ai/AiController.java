@@ -69,13 +69,10 @@ import io.sentry.Breadcrumb;
 import io.sentry.Sentry;
 
 import java.util.*;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static forge.ai.ComputerUtilMana.getAvailableManaEstimate;
 import static java.lang.Math.max;
@@ -99,7 +96,6 @@ public class AiController {
     private int lastAttackAggression;
     private boolean useLivingEnd;
     private List<SpellAbility> skipped;
-    private volatile boolean timeoutReached;
 
     public AiController(final Player computerPlayer, final Game game0) {
         player = computerPlayer;
@@ -191,28 +187,26 @@ public class AiController {
         CardCollectionView ccvGameBattlefield = CardLists.filter(game.getCardsIn(ZoneType.Battlefield), CardPredicates.hasSVar("AICurseEffect"));
         for (final Card c : ccvGameBattlefield) {
             final String curse = c.getSVar("AICurseEffect");
+            final Card host = sa.getHostCard();
             if ("NonActive".equals(curse) && !player.equals(game.getPhaseHandler().getPlayerTurn())) {
                 return true;
-            } else {
-                final Card host = sa.getHostCard();
-                if ("DestroyCreature".equals(curse) && sa.isSpell() && host.isCreature()
-                        && !host.hasKeyword(Keyword.INDESTRUCTIBLE)) {
-                    return true;
-                } else if ("CounterEnchantment".equals(curse) && sa.isSpell() && host.isEnchantment() && sa.isCounterableBy(null)) {
-                    return true;
-                } else if ("ChaliceOfTheVoid".equals(curse) && sa.isSpell() && sa.isCounterableBy(null)
-                        && host.getCMC() == c.getCounters(CounterEnumType.CHARGE)) {
-                    return true;
-                } else if ("BazaarOfWonders".equals(curse) && sa.isSpell() && sa.isCounterableBy(null)) {
-                    String hostName = host.getName();
-                    for (Card card : ccvGameBattlefield) {
-                        if (!card.isToken() && card.sharesNameWith(host)) {
-                            return true;
-                        }
-                    }
-                    if (game.getCardsIn(ZoneType.Graveyard).anyMatch(CardPredicates.nameEquals(hostName))) {
+            } else if ("DestroyCreature".equals(curse) && sa.isSpell() && host.isCreature()
+                    && !host.hasKeyword(Keyword.INDESTRUCTIBLE)) {
+                return true;
+            } else if ("CounterEnchantment".equals(curse) && sa.isSpell() && host.isEnchantment() && sa.isCounterableBy(null)) {
+                return true;
+            } else if ("ChaliceOfTheVoid".equals(curse) && sa.isSpell() && sa.isCounterableBy(null)
+                    && host.getCMC() == c.getCounters(CounterEnumType.CHARGE)) {
+                return true;
+            } else if ("BazaarOfWonders".equals(curse) && sa.isSpell() && sa.isCounterableBy(null)) {
+                String hostName = host.getName();
+                for (Card card : ccvGameBattlefield) {
+                    if (!card.isToken() && card.sharesNameWith(host)) {
                         return true;
                     }
+                }
+                if (game.getCardsIn(ZoneType.Graveyard).anyMatch(CardPredicates.nameEquals(hostName))) {
+                    return true;
                 }
             }
         }
@@ -470,7 +464,7 @@ public class AiController {
                 }
             }
             return c.getAllPossibleAbilities(player, true).stream().anyMatch(
-                    la -> la.isLandAbility() && canPlaySpellOrLandBasic(c, la) == AiPlayDecision.WillPlay
+                    la -> la.isLandAbility() && saSideEffects(c, la).willingToPlay()
             );
         });
         return landList;
@@ -818,34 +812,32 @@ public class AiController {
 
     private AiPlayDecision canPlayAndPayFor(final SpellAbility sa) {
         final Card host = sa.getHostCard();
-        Card altHost = host;
 
         if (sa instanceof Spell sp) {
-            altHost = sp.canPlayFromHost();
+            Card altHost = sp.canPlayFromHost();
             if (altHost == null) {
                 return AiPlayDecision.CantPlaySa;
+            }
+            // state needs to be switched here so API checks evaluate the right face
+            if (host != altHost) {
+                sa.setHostCard(altHost);
             }
             altHost.setCastSA(sa);
         } else if (!sa.canPlay()) {
             return AiPlayDecision.CantPlaySa;
         }
 
-        // state needs to be switched here so API checks evaluate the right face
-        if (host != altHost) {
-            sa.setHostCard(altHost);
+        try {
+            return canPlayAndPayForFace(sa);
+        } finally {
+            // in addition to engine some AI api can also switch host
+            if (sa.getHostCard() != host) {
+                sa.setHostCard(host);
+            }
+            if (sa.isSpell()) {
+                host.setCastSA(null);
+            }
         }
-
-        AiPlayDecision decision = canPlayAndPayForFace(sa);
-
-        if (host != altHost) {
-            sa.setHostCard(host);
-        }
-
-        if (sa.isSpell()) {
-            altHost.setCastSA(null);
-        }
-
-        return decision;
     }
 
     // This is for playing spells regularly (no Cascade/Ripple etc.)
@@ -853,7 +845,7 @@ public class AiController {
         final Card host = sa.getHostCard();
 
         if (sa.hasParam("AICheckSVar") && !aiShouldRun(sa, sa, host, null)) {
-            return AiPlayDecision.AnotherTime;
+            return AiPlayDecision.NeedsToPlayCriteriaNotMet;
         }
 
         // this is the "heaviest" check, which also sets up targets, defines X, etc.
@@ -888,14 +880,14 @@ public class AiController {
         }
 
         if (!sa.canCastTiming(player)) {
-            return AiPlayDecision.AnotherTime;
+            return AiPlayDecision.TimingRestrictions;
         }
 
         final Card card = sa.getHostCard();
 
         // Trying to play a card that has Buyback without a Buyback cost, look for possible additional considerations
         if (getBoolProperty(AiProps.TRY_TO_PRESERVE_BUYBACK_SPELLS) && card.hasKeyword(Keyword.BUYBACK)
-                && !sa.isBuyback() && !canPlaySpellWithoutBuyback(card, sa)) {
+                && !sa.isBuyback() && !canPlaySpellWithoutBuyback(sa)) {
             return AiPlayDecision.NeedsToPlayCriteriaNotMet;
         }
 
@@ -944,9 +936,6 @@ public class AiController {
                 return AiPlayDecision.WaitForMain2;
             }
         }
-        if (checkCurseEffects(sa)) {
-            return AiPlayDecision.CurseEffects;
-        }
         // TODO maybe other location for this?
         if (!sa.isLegalAfterStack()) {
             return AiPlayDecision.AnotherTime;
@@ -969,16 +958,25 @@ public class AiController {
                 return AiPlayDecision.TargetingFailed;
             }
         }
-        if (sa.isSpell()) {
-            return canPlaySpellOrLandBasic(card, sa);
-        }
 
-        return AiPlayDecision.WillPlay;
+        return saSideEffects(spellHost, sa);
     }
 
-    private AiPlayDecision canPlaySpellOrLandBasic(final Card card, final SpellAbility sa) {
+    private AiPlayDecision saSideEffects(final Card card, final SpellAbility sa) {
+        if (usesHybridSimulation()) {
+            return OnePlaySafetyChecker.isAcceptable(player, sa) ? AiPlayDecision.WillPlay : AiPlayDecision.HybridSimRejected;
+        }
+
+        if ((!sa.isSpell() && !sa.isLandAbility()) || usesFullSimulation()) {
+            return AiPlayDecision.WillPlay;
+        }
+
         if ("True".equals(card.getSVar("NonStackingEffect")) && ComputerUtilCard.isNonDisabledCardInPlay(player, card.getName())) {
-            return AiPlayDecision.NeedsToPlayCriteriaNotMet;
+            return AiPlayDecision.DoesntImpactGame;
+        }
+
+        if (checkCurseEffects(sa)) {
+            return AiPlayDecision.CurseEffects;
         }
 
         int damage = 0;
@@ -999,12 +997,11 @@ public class AiController {
             }
         }
 
-        // add any other necessary logic to play a basic spell here
         return ComputerUtilCard.checkNeedsToPlayReqs(card, sa);
     }
 
-    private boolean canPlaySpellWithoutBuyback(Card card, SpellAbility sa) {
-        int copies = CardLists.count(player.getCardsIn(ZoneType.Hand), CardPredicates.nameEquals(card.getName()));
+    private boolean canPlaySpellWithoutBuyback(SpellAbility sa) {
+        int copies = CardLists.count(player.getCardsIn(ZoneType.Hand), CardPredicates.nameEquals(sa.getHostCard().getName()));
         // Have two copies : allow
         if (copies >= 2) {
             return true;
@@ -1285,23 +1282,18 @@ public class AiController {
             if (!chance) {
                 return AiPlayDecision.TargetingFailed;
             }
-
-            if (mandatory) {
-                return AiPlayDecision.WillPlay;
-            }
         }
 
-        AiPlayDecision basicDecision = canPlaySpellOrLandBasic(spell.getHostCard(), spell);
-        if (basicDecision != AiPlayDecision.WillPlay || mandatory) {
-            return basicDecision;
+        if (mandatory) {
+            return AiPlayDecision.WillPlay;
         }
 
         SpellAbility abilityToCheck = spell;
-        if (withoutPayingManaCost && !spell.hasParam("WithoutManaCost")) {
+        if (usesHybridSimulation() && withoutPayingManaCost && !spell.hasParam("WithoutManaCost")) {
             abilityToCheck = spell.copyWithNoManaCost(player);
         }
-        return isChosenPlayAcceptable(abilityToCheck)
-                ? AiPlayDecision.WillPlay : AiPlayDecision.CurseEffects;
+
+        return saSideEffects(spell.getHostCard(), abilityToCheck);
     }
 
     // declares blockers for given defender in a given combat
@@ -1359,13 +1351,6 @@ public class AiController {
         return Lists.newArrayList(sa);
     }
 
-    private boolean isChosenPlayAcceptable(SpellAbility ability) {
-        if (usesFullSimulation() || !usesHybridSimulation()) {
-            return true;
-        }
-        return OnePlaySafetyChecker.isAcceptable(player, ability);
-    }
-
     public List<SpellAbility> chooseSpellAbilityToPlay() {
         AiCache.clear();
         // Reset cached predicted combat, as it may be stale. It will be
@@ -1414,9 +1399,7 @@ public class AiController {
 
                     if (!abilities.isEmpty()) {
                         // TODO extend this logic to evaluate MDFC with both sides land
-                        if (isChosenPlayAcceptable(abilities.get(0))) {
-                            return abilities;
-                        }
+                        return abilities;
                     }
                 }
             }
@@ -1624,21 +1607,17 @@ public class AiController {
             Sentry.captureMessage(ex.getMessage() + "\nAssertionError [verifyTransitivity]: " + assertex);
         }
 
-        // in case of infinite loop reset below would not be reached
-        timeoutReached = false;
-
         FutureTask<SpellAbility> future = new FutureTask<>(() -> {
             //avoid ComputerUtil.aiLifeInDanger in loops as it slows down a lot.. call this outside loops will generally be fast...
             boolean isLifeInDanger = useLivingEnd && ComputerUtil.aiLifeInDanger(player, true, 0);
             for (final SpellAbility sa : ComputerUtilAbility.getOriginalAndAltCostAbilities(all, player)) {
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
+
                 // Don't add Counterspells to the "normal" playcard lookups
                 if (skipCounter && sa.getApi() == ApiType.Counter) {
                     continue;
-                }
-
-                if (timeoutReached || Thread.currentThread().isInterrupted()) {
-                    timeoutReached = false;
-                    break;
                 }
 
                 if (sa.getHostCard().hasKeyword(Keyword.STORM)
@@ -1701,10 +1680,7 @@ public class AiController {
                 // PhaseHandler ph = game.getPhaseHandler();
                 // System.out.printf("Ai thinks '%s' of %s -> %s @ %s %s >>> \n", opinion, sa.getHostCard(), sa, Lang.getInstance().getPossesive(ph.getPlayerTurn().getName()), ph.getPhase());
 
-                if (opinion != AiPlayDecision.WillPlay)
-                    continue;
-
-                if (!isChosenPlayAcceptable(sa)) {
+                if (opinion != AiPlayDecision.WillPlay) {
                     continue;
                 }
 
@@ -1714,8 +1690,8 @@ public class AiController {
 
             return null;
         });
-
         Thread t = new Thread(future, "Game AI Eval");
+        t.setDaemon(true);
         t.start();
         try {
             return future.get(game.getAITimeout(), TimeUnit.SECONDS);
@@ -1733,10 +1709,9 @@ public class AiController {
             }
             // ask the eval thread to exit at the next SpellAbility check first: a brutal
             // Thread.stop() mid-evaluation can leave partially mutated shared state behind
-            timeoutReached = true;
             future.cancel(true);
             try {
-                t.join(500);
+                t.join(2000); //2 seconds wait
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
@@ -1831,8 +1806,7 @@ public class AiController {
                 }
             }
 
-            int left = 0;
-
+            int left;
             if (sa == null) {
                 left = AbilityUtils.calculateAmount(host, svarToCheck, effect);
             } else {

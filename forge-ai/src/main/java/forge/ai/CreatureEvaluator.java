@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+// the evaluator focuses on common abilities that can have impact on their own (or only need very likely conditions)
+// a negative example would be the "CountersRemain" static since it's just not worth the overhead in such a heavily used engine part
+
 public class CreatureEvaluator implements Function<Card, Integer> {
 
     // Per-turn cache: key = (cardId << 16) | (considerPT ? 0x8000 : 0) | (considerCMC ? 0x4000 : 0)
