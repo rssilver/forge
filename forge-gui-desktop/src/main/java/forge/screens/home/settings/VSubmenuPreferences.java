@@ -47,33 +47,27 @@ public enum VSubmenuPreferences implements IVSubmenu<CSubmenuPreferences> {
     private DragCell parentCell;
     private final DragTab tab = new DragTab(localizer.getMessage("Preferences"));
 
-    /** */
-    // The content panel lays out every row with percentage constraints (w 80%!). Without a bounded
-    // reference width, MigLayout resolves those percentages against an unbounded preferred size and the
-    // whole panel balloons to millions of pixels wide, stretching each field/button into a wide dark bar.
-    // Clamp the panel's size to its container's available width (with a sane fallback) so percentage rows
-    // resolve against real space; vertical overflow is handled by the enclosing scroll pane.
-    private final JPanel pnlPrefs = new JPanel() {
-        @Override
-        public Dimension getMaximumSize() {
-            return new Dimension(getBoundedWidth(), Integer.MAX_VALUE);
-        }
+    /** Maximum width of the settings column. Rows use w 80%!, so this caps input fields at ~80% of it (~768px). */
+    private static final int BOUNDED_PREF_WIDTH = 960;
 
-        @Override
-        public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
-            return new Dimension(getBoundedWidth(), d.height);
-        }
+    // The content panel lays out every row with percentage constraints (w 80%!); those percentages resolve
+    // against the panel's own laid-out width. Because pnlPrefs is the direct view of scrContent, JViewport
+    // stretches it to fill the viewport on wide monitors before MigLayout runs, so each w 80%! row balloons
+    // to ~1500px and inputs span the whole window while labels get pushed out of view. Simply clamping
+    // getPREFERRED/getMAXIMUMSize does not help: JViewport.setSize() overrides those during layout, ignoring
+    // them entirely (verified empirically). The robust fix wraps pnlPrefs in an outer column panel that
+    // MigLayout pins to a fixed width ("w 960px!"); even though the viewport stretches the wrapper, its own
+    // layout forces pnlPrefs back to BOUNDED_PREF_WIDTH, so the inner w 80%! rows resolve against ~960px.
+    private final JPanel pnlPrefs = new JPanel();
 
-        private int getBoundedWidth() {
-            Container c = getParent();
-            if (c != null && c.getWidth() > 0) {
-                return Math.max(320, c.getWidth() - 40);
-            }
-            return 960; // fallback when no container is attached yet
-        }
-    };
-    private final FScrollPane scrContent = new FScrollPane(pnlPrefs, false,
+    /** Outer panel pinned at BOUNDED_PREF_WIDTH; pins pnlPrefs' laid-out width regardless of viewport stretch. */
+    private final JPanel pnlColumn = new JPanel(new MigLayout("insets 0, gap 0"));
+    {
+        pnlColumn.setOpaque(false);
+        pnlColumn.add(pnlPrefs, "w " + BOUNDED_PREF_WIDTH + "px!, h pref!");
+    }
+
+    private final FScrollPane scrContent = new FScrollPane(pnlColumn, false,
     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
     private final FLabel btnReset = new FLabel.Builder().opaque(true).hoverable(true).text(localizer.getMessage("btnReset")).build();
