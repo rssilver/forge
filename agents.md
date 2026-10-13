@@ -69,6 +69,17 @@ After work lands on top of the base (i.e. commits appear in `origin/master..<cur
   ```
   The original entry keeps its own committer timestamp; the Removed header carries a **separate** removal timestamp and the SHA of the commit that removed it. Place the Removed header immediately under the entry's bullet.
 
+#### Concrete procedure (placeholder → real SHA → single amend)
+Because an entry must name a commit's SHA but that SHA only exists *after* committing, use this exact sequence so you never leave `#<sha>` placeholders or stray "fixup" commits in history:
+1. Write each changelog entry with a `#<sha>` placeholder and the expected committer timestamp (use `[YYYY-MM-DD HH:mm zzz]` to fill).
+2. Commit the work; git assigns the real SHA + committer time. Read it back: `git log -1 --format='%h|%ci'`.
+3. Replace the `#<sha>` placeholder with the real short SHA and set the timestamp from `%ci`.
+4. Amend once (`git commit --amend`) to fold the corrected changelog into the single commit — do not make a separate "fixup" commit.
+
+Notes:
+- After the amend, HEAD's SHA differs from the pre-amend SHA the entry references; that is intentional and fine. The entry points at a real commit that genuinely added the files (amend changes only commit metadata, not tree content), and a changelog is a historical record — referencing the actual authoring commit is correct even if it isn't `git rev-parse HEAD`.
+- Do NOT chase making the changelog contain its own final SHA in one pass: a file inside a commit cannot hold that commit's hash, since the hash is computed from tree contents including that text. One amend is sufficient; stop there.
+
 ### Category selection rules
 Group by **primary effect area**, not by file path: user-facing capability → `Features`; engine/rules/stack/combat/randomness → `Rules Engine`; rendering/UI/controls → `UI`; netplay/networking → `Networking`; AI logic → `AI`; card/set/edition/archive data & image downloading → `Card Data, Editions & Sets`; Quest/Adventure modes → `Quest & Adventure`; build/launch/refactor/relocation → `Build / Launch / Infrastructure`; generic cleanup/comments → `Maintenance & Cleanup`; explicit `Revert` → `Reverts`.
 If a commit spans two areas, pick the primary one and add a short `(cross-ref …)` note.

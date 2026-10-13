@@ -99,6 +99,7 @@
 - **[2026-09-19 10:20:11 +0200]** `#3da46bb` — Update QuestMode to support Attractions and Contraptions
 
 ## H. Build / Launch / Infrastructure
+- **[2026-10-12 22:58:38 -0400]** `#bb5daf9ded6` — Update agents.md with concrete pre-commit changelog procedure (write entries with a `#<sha>` placeholder before committing → fill real SHA/timestamp from `git log -1 --format='%h|%ci'` after commit → single `--amend`, no separate fixup commit)  *(developer documentation)*
 - **[2026-10-12 22:41:37 -0400]** `#4988dbec9c0` — Add developer documentation (spec.md, changelog.md, agents.md): repo map with module dependency graph + §3.1 fork-vs-upstream tiers, §4 game-engine taxonomy / §7 card & edition formats, §8 Behavioral Execution Model; establish pre-commit changelog update + Removed-header convention  *(developer documentation)*
 - **[2026-10-12 20:31:46 -0400]** `#91335c2` — Add URL deck deduplication and fix run.bat/run.ps1 rebuild flow
 - **[2026-10-12 05:06:31 -0400]** `#8d67c78` — Add Windows launcher scripts (run.bat/run.ps1) and ignore .cortex/
