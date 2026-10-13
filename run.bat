@@ -3,8 +3,8 @@ setlocal enabledelayedexpansion
 
 REM ============================================================
 REM Forge MTG - Windows Launcher Script
-REM Usage: run.bat [build]
-REM   build  - Rebuilds the project before launching (optional)
+REM Usage: run.bat [rebuild]
+REM   rebuild  - Rebuild the project before launching (default is to skip and use the existing JAR)
 REM ============================================================
 
 cd /d "%~dp0"
@@ -15,9 +15,9 @@ echo    Forge MTG Launcher
 echo ========================================
 echo.
 
-REM Step 1: Build if requested or if JAR doesn't exist
-if not exist "forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies.jar" (
-    echo [INFO] JAR not found. Building project...
+REM Only rebuild when 'rebuild' is passed; otherwise launch the existing JAR as-is.
+if "%~1"=="rebuild" (
+    echo [INFO] Building project...
     call mvn clean package -DskipTests
     if errorlevel 1 (
         echo.
@@ -25,17 +25,10 @@ if not exist "forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies
         pause
         exit /b 1
     )
-)
-
-if "%~1"=="build" (
-    echo [INFO] Rebuilding project...
-    call mvn clean package -DskipTests
-    if errorlevel 1 (
-        echo.
-        echo [ERROR] Build failed!
-        pause
-        exit /b 1
-    )
+    set "JAVACMD_ARGS="
+) else (
+    echo [INFO] Skipping build. Using existing JAR...
+    set "JAVACMD_ARGS=%*"
 )
 
 REM Step 2: Sync resources to project root.
@@ -52,7 +45,7 @@ for %%J in (forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies.j
 if not defined JAR (
     echo.
     echo [ERROR] Could not find Forge JAR!
-    echo Run this script with 'build' argument to compile first.
+    echo Build the project first; run run.bat rebuild.
     pause
     exit /b 1
 )
@@ -60,6 +53,6 @@ if not defined JAR (
 REM Step 4: Launch
 echo [INFO] Starting Forge...
 echo.
-java -Xmx4g -jar "%JAR%" %*
+java -Xmx4g -jar "%JAR%" %JAVACMD_ARGS%
 
 pause

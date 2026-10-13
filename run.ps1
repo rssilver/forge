@@ -1,8 +1,12 @@
 # ============================================================
 # Forge MTG - Windows PowerShell Launcher Script
-# Usage: .\run.ps1 [build]
-#   build  - Rebuilds the project before launching (optional)
+# Usage: .\run.ps1 [-Rebuild]
+#   -Rebuild  Rebuild the project before launching (default is to skip and use the existing JAR)
 # ============================================================
+
+param(
+    [switch]$Rebuild
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -14,45 +18,17 @@ Write-Output "   Forge MTG Launcher"
 Write-Output "========================================"
 Write-Output ""
 
-$jarPattern = "forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies.jar"
-
-function Get-Jar {
-    $matches = Get-ChildItem -Path (Join-Path $PSScriptRoot $jarPattern) -ErrorAction SilentlyContinue
-    if ($matches) {
-        return $matches[-1].FullName
-    }
-    return $null
-}
-
-$jar = Get-Jar
-
-if (-not $jar) {
-    Write-Output "[INFO] JAR not found. Building project..."
+# Only rebuild when -Rebuild is passed; otherwise launch the existing JAR as-is.
+if ($Rebuild) {
+    Write-Output "[INFO] Building project..."
     mvn clean package -DskipTests
     if ($LASTEXITCODE -ne 0) {
         Write-Output ""
         Write-Output "[ERROR] Build failed!"
         exit 1
     }
-    $jar = Get-Jar
-}
-
-if ($args.Count -gt 0 -and $args[0] -eq "build") {
-    Write-Output "[INFO] Rebuilding project..."
-    mvn clean package -DskipTests
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output ""
-        Write-Output "[ERROR] Build failed!"
-        exit 1
-    }
-    $jar = Get-Jar
-}
-
-if (-not $jar) {
-    Write-Output ""
-    Write-Output "[ERROR] Could not find Forge JAR!"
-    Write-Output "Run this script with 'build' argument to compile first."
-    exit 1
+} else {
+    Write-Output "[INFO] Skipping build. Using existing JAR..."
 }
 
 # Sync resources to project root.
@@ -64,6 +40,17 @@ if (Test-Path $resDest) {
     Remove-Item -Recurse -Force $resDest
 }
 Copy-Item -Recurse -Force (Join-Path $PSScriptRoot "forge-gui\res") $resDest
+
+# Find the JAR
+$jarPattern = "forge-gui-desktop\target\forge-gui-desktop-*-jar-with-dependencies.jar"
+$jars = Get-ChildItem -Path (Join-Path $PSScriptRoot $jarPattern) -ErrorAction SilentlyContinue
+if (-not $jars) {
+    Write-Output ""
+    Write-Output "[ERROR] Could not find Forge JAR!"
+    Write-Output "Build the project first (run run.ps1 -Rebuild)."
+    exit 1
+}
+$jar = $jars[-1].FullName
 
 Write-Output "[INFO] Starting Forge..."
 Write-Output ""

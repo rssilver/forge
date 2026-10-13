@@ -23,11 +23,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class DeckUrlLoader {
     private static final Pattern PRINTING_HINT = Pattern.compile(
             "^(\\s*\\d+\\s+.+?)\\s+\\[[A-Z0-9_]{2,7}\\](?:\\s+\\*?[0-9A-Z]+(?:\\S[0-9A-Z]*)?)?\\s*$");
+    // A trailing provider-id-like token appended to a deck name (e.g. " 12345" or "ABC"), used to
+    // tell apart same-named decks imported from different sources.
+    private static final Pattern TRAILING_ID_TOKEN = Pattern.compile("\\s+(?:\\d+|[A-Z]{2,})$");
+    private static final Pattern TRAILING_PUNCTUATION = Pattern.compile("[?!.…]+$");
     private static final String URL_DECK_DIR_NAME = "URL";
     private static final String SUPPORTED_PROVIDERS = "Moxfield, Archidekt, TappedOut, MTGGoldfish";
     private static final Localizer localizer = Localizer.getInstance();
@@ -52,10 +57,61 @@ public final class DeckUrlLoader {
     public static List<DeckProxy> getUrlDecks() {
         final List<DeckProxy> decks = new ArrayList<>();
         final StorageImmediatelySerialized<Deck> storage = getStorage();
+        final String baseDir = storage.getFullPath();
+
+        // A single deck can be saved under several near-identical names when a URL is re-imported or
+        // imported from multiple providers (a provider id gets appended to disambiguate). Collapse
+        // those into one entry, keeping only the most recently imported version, so the "Provide
+        // Deck URL" picker doesn't show confusing duplicates. Preserve first-seen order among survivors.
+        final Map<String, Deck> latestByName = new LinkedHashMap<>();
         for (final Deck deck : storage) {
+            final String key = normalizeDedupName(deck.getName());
+            final Deck previous = latestByName.get(key);
+            if (previous == null || fileLastModified(baseDir, deck.getBestFileName()) > fileLastModified(baseDir, previous.getBestFileName())) {
+                latestByName.put(key, deck);
+            }
+        }
+
+        for (final Deck deck : latestByName.values()) {
             decks.add(new DeckProxy(deck, localizer.getMessage("lblUrlDeck"), GameType.Constructed, storage));
         }
         return decks;
+    }
+
+    /** Collapses names that refer to the same deck into a single comparison key. */
+    static String normalizeDedupName(final String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String name = raw.trim();
+        // Drop any trailing provider-id-like token (" 12345", "ABC"), repeating for stacked ids.
+        while (true) {
+            final Matcher idMatcher = TRAILING_ID_TOKEN.matcher(name);
+            if (!idMatcher.find()) {
+                break;
+            }
+            name = idMatcher.replaceFirst("").trim();
+        }
+
+        name = name.toLowerCase().trim();
+
+        // Drop trailing punctuation / whitespace ("Name?", "Name ?"), repeating as needed.
+        while (true) {
+            final Matcher punctMatcher = TRAILING_PUNCTUATION.matcher(name);
+            if (!punctMatcher.find()) {
+                break;
+            }
+            name = punctMatcher.replaceFirst("").trim();
+        }
+
+        return name;
+    }
+
+    private static long fileLastModified(final String baseDir, final String fileName) {
+        if (baseDir == null || baseDir.isBlank() || fileName == null) {
+            return 0L;
+        }
+        return new File(baseDir, fileName + DeckStorage.FILE_EXTENSION).lastModified();
     }
 
     private static DeckUrlProvider getProvider(final String normalizedUrl) throws IOException {
