@@ -104,3 +104,9 @@ __pycache__
 forge-gui/tools/build
 forge-gui-ios/robovm.properties
 .cortex/
+
+# Runtime-synced asset copy at repo root (launcher copies forge-gui\res -> res/)
+/res/
+
+# Startup timing instrumentation scratch dir
+.tmp_startup/

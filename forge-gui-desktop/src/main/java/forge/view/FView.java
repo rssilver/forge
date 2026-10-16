@@ -254,6 +254,7 @@ public enum FView {
 		//start background music
 		SoundSystem.instance.setBackgroundMusic(MusicPlaylist.MENUS);
 
+		System.out.printf("[STARTUP] app startup complete in %d ms%n", System.currentTimeMillis() - Main.__startupStartMs);
 	}
 
 	// will populate remainingFiles with remaining files if not null, returns whether any files have

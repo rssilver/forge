@@ -29,10 +29,14 @@ import io.sentry.Sentry;
  * Main class for Forge's swing application view.
  */
 public final class Main {
+    /** Startup wall-clock capture, read by the view layer to log total app startup. */
+    static long __startupStartMs = 0L;
+
     /**
      * Main entry point for Forge
      */
     public static void main(final String[] args) {
+        __startupStartMs = System.currentTimeMillis();
         // Command line modes must never touch the display: they run on servers, in CI, and over ssh.
         // This has to happen before any AWT class loads, so it also has to happen before Sentry.init.
         final String mode = args.length > 0 ? args[0].toLowerCase() : "";
